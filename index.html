@@ -2,41 +2,180 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>OSPF Design Explorer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSPF LSA Filter Lab | SDN TechForum</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script type="module">
-        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-        mermaid.initialize({ startOnLoad: true });
-    </script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        .lsa-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+    </style>
 </head>
-<body class="bg-gray-50 p-8">
+<body class="bg-slate-900 text-slate-100 font-sans">
+    <div id="app" class="min-h-screen p-4 md:p-8">
+        <header class="max-w-6xl mx-auto mb-8 border-b border-slate-700 pb-6">
+            <h1 class="text-3xl font-bold text-sky-400">OSPF LSA Filter Lab</h1>
+            <p class="text-slate-400 mt-2">Interactive visualization of LSA propagation across OSPF Area boundaries.</p>
+        </header>
 
-    <div class="max-w-5xl mx-auto">
-        <h1 class="text-3xl font-bold mb-6">OSPF Area 1: LSA Filtering Logic</h1>
-        
-        <div class="bg-white p-6 rounded shadow mb-8">
-            <pre class="mermaid">
-            graph LR
-                A[Area 0 Backbone] -- "Type 3 Summary" --> B(ABR: Core-1)
-                B -- "Blocked" --> C{Stub Area 1}
-                B -- "Default Route O*IA" --> C
-                C -- "Type 1/2 Local" --> D[CP-BR-1]
-                D -- "Type 1/2 Local" --> E[Edge Switch]
+        <main class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
+                <h2 class="text-xl font-semibold mb-4 text-white">Area Configuration</h2>
                 
-                style B fill:#f96,stroke:#333
-                style C fill:#69f,stroke:#333,stroke-width:4px
-            </pre>
-        </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-2">Select Area Type</label>
+                        <select v-model="selectedArea" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-sky-500 outline-none">
+                            <option v-for="(data, key) in areaTypes" :key="key" :value="key">
+                                {{ data.name }}
+                            </option>
+                        </select>
+                    </div>
 
-        <h2 class="text-xl font-semibold mb-4">How to read this:</h2>
-        <div class="bg-white p-6 rounded shadow">
-            <p>This diagram visualizes our <strong>Totally Stubby</strong> configuration:</p>
-            <ul class="list-disc ml-5 mt-2 text-gray-700">
-                <li>The <strong>ABR (Core-1)</strong> actively filters out all external and inter-area LSAs.</li>
-                <li>The <strong>Default Route (O*IA)</strong> is the only "outside" knowledge allowed into the Area.</li>
-                <li>This ensures our edge switches only carry a tiny, stable routing table.</li>
-            </ul>
-        </div>
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-slate-700/50">
+                        <h3 class="text-sm font-bold text-sky-300 uppercase tracking-wider mb-2">Logic Description</h3>
+                        <p class="text-sm text-slate-300 leading-relaxed">{{ areaTypes[selectedArea].desc }}</p>
+                    </div>
+
+                    <div class="space-y-2">
+                        <h3 class="text-sm font-bold text-sky-300 uppercase tracking-wider">CLI Equivalent</h3>
+                        <div class="bg-black p-3 rounded font-mono text-xs text-green-400">
+                            router ospf 1<br>
+                            <span v-html="areaTypes[selectedArea].cli"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2 bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl relative overflow-hidden">
+                <div class="flex justify-between items-center mb-12">
+                    <div class="text-center w-32">
+                        <div class="h-16 w-16 bg-sky-500/20 border-2 border-sky-500 rounded-full flex items-center justify-center mx-auto mb-2 shadow-[0_0_15px_rgba(14,165,233,0.4)]">
+                            <span class="font-bold">Area 0</span>
+                        </div>
+                        <span class="text-xs text-slate-400 italic">Backbone</span>
+                    </div>
+
+                    <div class="flex-1 flex flex-col items-center px-4">
+                        <div class="w-full h-1 bg-slate-700 relative">
+                            <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-slate-800 px-3 py-1 border border-slate-600 rounded text-[10px] font-bold text-slate-300">
+                                ABR (Core-1)
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center w-32">
+                        <div class="h-16 w-16 bg-purple-500/20 border-2 border-purple-500 rounded-full flex items-center justify-center mx-auto mb-2 shadow-[0_0_15px_rgba(168,85,247,0.4)]">
+                            <span class="font-bold">Area 1</span>
+                        </div>
+                        <span class="text-xs text-slate-400 italic">Target Area</span>
+                    </div>
+                </div>
+
+                <div class="space-y-3">
+                    <div v-for="lsa in lsas" :key="lsa.id" class="flex items-center bg-slate-900/40 p-3 rounded-lg border border-slate-700/30">
+                        <div class="w-24 font-mono text-xs font-bold text-sky-400">Type {{ lsa.id }}</div>
+                        <div class="flex-1 text-sm text-slate-300">{{ lsa.name }}</div>
+                        
+                        <div class="flex items-center">
+                            <div v-if="checkStatus(lsa.id) === 'pass'" class="flex items-center text-emerald-400 text-xs font-bold">
+                                <span class="mr-2">PERMITTED</span>
+                                <div class="w-2 h-2 rounded-full bg-emerald-400 lsa-pulse"></div>
+                            </div>
+                            <div v-else-if="checkStatus(lsa.id) === 'block'" class="flex items-center text-rose-500 text-xs font-bold">
+                                <span class="mr-2">BLOCKED</span>
+                                <div class="w-2 h-2 rounded-full bg-rose-500"></div>
+                            </div>
+                            <div v-else-if="checkStatus(lsa.id) === 'replaced'" class="flex items-center text-amber-400 text-xs font-bold">
+                                <span class="mr-2">REPLACED BY DEFAULT</span>
+                                <div class="w-2 h-2 rounded-full bg-amber-400 lsa-pulse"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-8 flex justify-center space-x-6 text-[10px] text-slate-500 uppercase font-bold tracking-widest">
+                    <div class="flex items-center"><div class="w-2 h-2 bg-emerald-400 rounded-full mr-2"></div> Allowed</div>
+                    <div class="flex items-center"><div class="w-2 h-2 bg-rose-500 rounded-full mr-2"></div> Filtered</div>
+                    <div class="flex items-center"><div class="w-2 h-2 bg-amber-400 rounded-full mr-2"></div> Summary Default</div>
+                </div>
+            </div>
+        </main>
     </div>
+
+    <script>
+        const { createApp } = Vue
+        createApp({
+            data() {
+                return {
+                    selectedArea: 'standard',
+                    lsas: [
+                        { id: 1, name: 'Router LSA (Intra-Area)' },
+                        { id: 2, name: 'Network LSA (Intra-Area)' },
+                        { id: 3, name: 'Summary LSA (Inter-Area)' },
+                        { id: 4, name: 'ASBR Summary LSA' },
+                        { id: 5, name: 'AS External LSA' },
+                        { id: 7, name: 'NSSA External LSA' }
+                    ],
+                    areaTypes: {
+                        standard: {
+                            name: 'Standard Area',
+                            desc: 'The default area type. Accepts all LSAs from the backbone and other areas including external routes.',
+                            cli: ' network 10.103.0.0 0.0.255.255 area 1'
+                        },
+                        stub: {
+                            name: 'Stub Area',
+                            desc: 'Filters Type 4/5 (External) LSAs. The ABR injects a Type 3 Default route to maintain reachability.',
+                            cli: ' area 1 stub'
+                        },
+                        totally_stubby: {
+                            name: 'Totally Stubby Area',
+                            desc: 'Cisco proprietary. Filters Type 3, 4, and 5 LSAs. Only Type 1/2 and a single Type 3 default route exist.',
+                            cli: ' area 1 stub no-summary'
+                        },
+                        nssa: {
+                            name: 'NSSA (Not-So-Stubby)',
+                            desc: 'Similar to Stub but allowed to host an ASBR. External routes are imported as Type 7 then converted to Type 5 at the ABR.',
+                            cli: ' area 1 nssa'
+                        },
+                        totally_nssa: {
+                            name: 'Totally NSSA',
+                            desc: 'Cisco proprietary. Combines NSSA features with Totally Stubby filtering. Blocks Type 3/4/5 but allows Type 7.',
+                            cli: ' area 1 nssa no-summary'
+                        }
+                    }
+                }
+            },
+            methods: {
+                checkStatus(id) {
+                    const area = this.selectedArea;
+                    if (id === 1 || id === 2) return 'pass';
+                    
+                    if (area === 'standard') return 'pass';
+                    
+                    if (area === 'stub') {
+                        if (id === 3) return 'pass';
+                        return 'replaced';
+                    }
+                    
+                    if (area === 'totally_stubby') {
+                        if (id === 3) return 'replaced';
+                        return 'block';
+                    }
+                    
+                    if (area === 'nssa') {
+                        if (id === 3 || id === 7) return 'pass';
+                        return 'block';
+                    }
+
+                    if (area === 'totally_nssa') {
+                        if (id === 7) return 'pass';
+                        if (id === 3) return 'replaced';
+                        return 'block';
+                    }
+                }
+            }
+        }).mount('#app')
+    </script>
 </body>
 </html>
