@@ -2,56 +2,41 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Network Architecture: OSPF Design</title>
+    <title>OSPF Design Explorer</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true });
+    </script>
 </head>
-<body class="bg-gray-50 text-gray-900">
+<body class="bg-gray-50 p-8">
 
-    <div class="max-w-4xl mx-auto p-8">
-        <header class="mb-12 border-b pb-6">
-            <h1 class="text-4xl font-bold text-blue-800">OSPF Design: Core to Edge</h1>
-            <p class="text-gray-600 mt-2">Standardized OSPF Area 1 configuration for distribution and edge blocks.</p>
-        </header>
+    <div class="max-w-5xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6">OSPF Area 1: LSA Filtering Logic</h1>
+        
+        <div class="bg-white p-6 rounded shadow mb-8">
+            <pre class="mermaid">
+            graph LR
+                A[Area 0 Backbone] -- "Type 3 Summary" --> B(ABR: Core-1)
+                B -- "Blocked" --> C{Stub Area 1}
+                B -- "Default Route O*IA" --> C
+                C -- "Type 1/2 Local" --> D[CP-BR-1]
+                D -- "Type 1/2 Local" --> E[Edge Switch]
+                
+                style B fill:#f96,stroke:#333
+                style C fill:#69f,stroke:#333,stroke-width:4px
+            </pre>
+        </div>
 
-        <section class="mb-10">
-            <h2 class="text-2xl font-semibold mb-4">Architecture Overview</h2>
-            <p class="mb-4">Our design uses a <strong>Totally Stubby Area</strong> configuration for Area 1 to minimize routing table overhead on edge devices while maintaining full reachability.</p>
-            <div class="bg-blue-50 border-l-4 border-blue-500 p-4">
-                <ul class="list-disc ml-5 space-y-2">
-                    <li><strong>Core-1:</strong> Acts as the ABR, injecting a default route (Type 3 LSA) into Area 1.</li>
-                    <li><strong>CP-BR-1:</strong> Transit point for Area 1.</li>
-                    <li><strong>Edge Routers:</strong> Passive by default; minimal configuration required.</li>
-                </ul>
-            </div>
-        </section>
-
-        <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="bg-white p-6 rounded-lg shadow border border-gray-200">
-                <h3 class="font-bold text-lg mb-3">Core-1 (ABR) Config</h3>
-                <pre class="bg-gray-900 text-green-400 p-4 rounded text-sm overflow-x-auto">
-router ospf 1
- area 1 stub no-summary
- default-information originate always
-                </pre>
-            </div>
-
-            <div class="bg-white p-6 rounded-lg shadow border border-gray-200">
-                <h3 class="font-bold text-lg mb-3">Edge Router Config</h3>
-                <pre class="bg-gray-900 text-green-400 p-4 rounded text-sm overflow-x-auto">
-router ospf 1
- area 1 stub
- !
-interface GigabitEthernet1/0/1
- ip ospf 1 area 1
- ip ospf network point-to-point
-                </pre>
-            </div>
-        </section>
-
-        <footer class="mt-16 text-center text-gray-500 text-sm">
-            <p>Maintained by SDN TechForum | Internal Documentation</p>
-        </footer>
+        <h2 class="text-xl font-semibold mb-4">How to read this:</h2>
+        <div class="bg-white p-6 rounded shadow">
+            <p>This diagram visualizes our <strong>Totally Stubby</strong> configuration:</p>
+            <ul class="list-disc ml-5 mt-2 text-gray-700">
+                <li>The <strong>ABR (Core-1)</strong> actively filters out all external and inter-area LSAs.</li>
+                <li>The <strong>Default Route (O*IA)</strong> is the only "outside" knowledge allowed into the Area.</li>
+                <li>This ensures our edge switches only carry a tiny, stable routing table.</li>
+            </ul>
+        </div>
     </div>
 </body>
 </html>
